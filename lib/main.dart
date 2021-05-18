@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 
 void main() {
@@ -10,21 +8,22 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MyHomePage(),
+      home: Solution(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class Solution extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _SolutionState createState() => _SolutionState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  InMemoryDataStore db;
+class _SolutionState extends State<Solution> {
+  final keyController = TextEditingController();
+  final valueController = TextEditingController();
+  late InMemoryDataStore db;
   String result = "";
-  String key;
-  String value;
+  List<TableRow> dataRows = [];
 
   @override
   void initState() {
@@ -34,6 +33,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    prepareDataRows();
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -46,93 +47,117 @@ class _MyHomePageState extends State<MyHomePage> {
           padding: EdgeInsets.all(30),
           child: Column(
             children: [
-              TextFormField(
-                key: Key("Key Widget"),
-                decoration: InputDecoration(
-                  hintText: "Enter Key",
-                  icon: Icon(Icons.vpn_key),
-                ),
-                onChanged: (newKey) => setState(() {
-                  key = newKey;
-                }),
-              ),
-              TextFormField(
-                key: Key("Value Widget"),
-                decoration: InputDecoration(
-                  hintText: "Enter Value",
-                  icon: Icon(Icons.insert_drive_file_outlined),
-                ),
-                onChanged: (newValue) => setState(() {
-                  value = newValue;
-                }),
-              ),
+              buildTextFields(),
               SizedBox(height: 10),
-              AppButton(
-                title: "Create",
-                onPressed: () {
-                  setState(() {
-                    result = db.create(key, value);
-                  });
-                },
-                onException: (e) {
-                  setState(() {
-                    result = e;
-                  });
-                },
-              ),
-              AppButton(
-                title: "Read",
-                onPressed: () {
-                  setState(() {
-                    result = db.read(key);
-                  });
-                },
-                onException: (e) {
-                  setState(() {
-                    result = e;
-                  });
-                },
-              ),
-              AppButton(
-                title: "Update",
-                onPressed: () {
-                  setState(() {
-                    result = db.update(key, value);
-                  });
-                },
-                onException: (e) {
-                  setState(() {
-                    result = e;
-                  });
-                },
-              ),
-              AppButton(
-                title: "Delete",
-                onPressed: () {
-                  setState(() {
-                    result = db.delete(key);
-                  });
-                },
-                onException: (e) {
-                  setState(() {
-                    result = e;
-                  });
-                },
-              ),
+              buildButtons(),
               SizedBox(height: 10),
               Divider(thickness: 1.5),
-              Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  result,
-                  key: Key("Result"),
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              buildResult(),
+              Divider(thickness: 1.5),
+              buildTable(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void prepareDataRows() {
+    dataRows.clear();
+    if (db.values.isNotEmpty) {
+      dataRows = [
+        TableRow(
+          children: [
+            AppText("Key", fontWeight: FontWeight.bold),
+            AppText("Value", fontWeight: FontWeight.bold),
+          ],
+        )
+      ];
+    }
+    db.values.forEach((key, value) {
+      dataRows.add(TableRow(
+        children: [AppText(key), AppText(value)],
+      ));
+    });
+  }
+
+  Widget buildTextFields() {
+    return Column(
+      children: [
+        TextField(
+          controller: keyController,
+          decoration: InputDecoration(
+            hintText: "Enter Key",
+            icon: Icon(Icons.vpn_key),
+          ),
+        ),
+        TextField(
+          controller: valueController,
+          decoration: InputDecoration(
+            hintText: "Enter Value",
+            icon: Icon(Icons.insert_drive_file_outlined),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget buildButtons() {
+    return Wrap(
+      spacing: 10,
+      children: [
+        AppButton(
+          title: "Create",
+          onPressed: () => setState(() => result = db.create(keyController.text.trim(), valueController.text.trim())),
+        ),
+        AppButton(
+          title: "Read",
+          onPressed: () => setState(() => result = db.read(keyController.text.trim())),
+        ),
+        AppButton(
+          title: "Update",
+          onPressed: () => setState(() => result = db.update(keyController.text.trim(), valueController.text.trim())),
+        ),
+        AppButton(
+          title: "Delete",
+          onPressed: () => setState(() => result = db.delete(keyController.text.trim())),
+        ),
+      ],
+    );
+  }
+
+  Widget buildResult() {
+    return Padding(
+      padding: EdgeInsets.all(20),
+      child: Text(
+        result,
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget buildTable() {
+    return Table(
+      border: TableBorder.all(width: 0.5),
+      children: dataRows,
+    );
+  }
+}
+
+class AppText extends StatelessWidget {
+  final String text;
+  final FontWeight fontWeight;
+
+  AppText(this.text, {this.fontWeight = FontWeight.normal});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(8.0),
+      child: Text(
+        text,
+        style: TextStyle(fontWeight: fontWeight),
       ),
     );
   }
@@ -141,135 +166,122 @@ class _MyHomePageState extends State<MyHomePage> {
 class AppButton extends StatelessWidget {
   final String title;
   final Function onPressed;
-  final Function(String) onException;
 
-  AppButton({@required this.title, @required this.onPressed, @required this.onException});
+  AppButton({required this.title, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 5),
       child: MaterialButton(
-        key: Key(title),
         height: 50,
-        minWidth: MediaQuery.of(context).size.width / 2,
+        minWidth: (MediaQuery.of(context).size.width - 80) / 2,
         color: Colors.white70,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         child: Text(title),
-        onPressed: () {
-          try {
-            onPressed();
-          } catch (e) {
-            onException(e.toString());
-          }
-        },
+        onPressed: () => onPressed(),
       ),
     );
   }
 }
 
-class Solution {}
-
 class InMemoryDataStore implements DataStore {
   static AppLogger _logger = AppLogger();
   static Map<String, String> _db = {};
 
-  // another option is setting the key internally through global counter to insure keys uniqueness
+  Map<String, String> get values => _db;
+
   @override
   String create(String key, String value) {
     _logger.write("Creating Entry");
 
-    _checkKeyNotEmpty(key);
-    _checkKeyNotExists(key);
-    _checkValueNotEmpty(value);
-
-    if (value == null || value.isEmpty) {
+    if (key.isEmpty) {
       _logger.write("Empty Key");
-      throw Exception("Empty Key");
+      return "Empty Key";
+    }
+    if (value.isEmpty) {
+      _logger.write("Empty Value");
+      return "Empty Value";
+    }
+    if (_db.containsKey(key)) {
+      _logger.write("Key Already Exists");
+      return "Key Already Exists";
     }
 
     _db[key] = value;
 
     _logger.write("Entry Created Successfully");
-
-    return _db[key];
+    return "Entry Created Successfully";
   }
 
   @override
   String update(String key, String newValue) {
     _logger.write("Updating Entry");
 
-    _checkKeyNotEmpty(key);
-    _checkKeyExists(key);
-    _checkValueNotEmpty(newValue);
+    if (key.isEmpty) {
+      _logger.write("Empty Key");
+      return "Empty Key";
+    }
+    if (newValue.isEmpty) {
+      _logger.write("Empty Value");
+      return "Empty Value";
+    }
+    if (!_db.containsKey(key)) {
+      _logger.write("Key Not Found");
+      return "Key Not Found";
+    }
+    if (_db[key] == newValue) {
+      _logger.write("Value Not Changed");
+      return "Value Not Changed";
+    }
 
     _db[key] = newValue;
 
     _logger.write("Entry Updated Successfully");
-
-    return _db[key];
+    return "Entry Updated Successfully";
   }
 
   @override
   String delete(String key) {
     _logger.write("Removing Entry");
 
-    _checkKeyNotEmpty(key);
-    _checkKeyExists(key);
+    if (key.isEmpty) {
+      _logger.write("Empty Key");
+      return "Empty Key";
+    }
+    if (!_db.containsKey(key)) {
+      _logger.write("Key Not Found");
+      return "Key Not Found";
+    }
 
-    var value = _db[key];
     _db.remove(key);
 
     _logger.write("Entry Removed Successfully");
-
-    return value;
+    return "Entry Removed Successfully";
   }
 
   @override
   String read(String key) {
     _logger.write("Reading Entry");
 
-    _checkKeyNotEmpty(key);
-    _checkKeyExists(key);
-
-    _logger.write("Entry Read Successfully");
-
-    return _db[key];
-  }
-
-  void _checkKeyNotEmpty(key) {
-    if (key == null || key.isEmpty) {
+    if (key.isEmpty) {
       _logger.write("Empty Key");
-      throw Exception("Empty Key");
+      return "Empty Key";
     }
-  }
-
-  void _checkValueNotEmpty(String value) {
-    if (value == null || value.isEmpty) {
-      _logger.write("Empty Value");
-      throw Exception("Empty Value");
-    }
-  }
-
-  void _checkKeyNotExists(String key) {
-    if (_db.containsKey(key)) {
-      _logger.write("Key Already Exists");
-      throw Exception("Key Already Exists");
-    }
-  }
-
-  void _checkKeyExists(String key) {
     if (!_db.containsKey(key)) {
       _logger.write("Key Not Found");
-      throw Exception("Key Not Found");
+      return "Key Not Found";
     }
+
+    _logger.write("Entry Read Successfully");
+    return _db[key]!;
   }
 }
 
 class AppLogger implements Logger {
   @override
-  Future<void> write(String message) async {
-    log(message, time: DateTime.now());
+  void write(String message) {
+    print(message);
     return;
   }
 }
@@ -285,6 +297,5 @@ abstract class DataStore {
 }
 
 abstract class Logger {
-  // I don't think this functions needs to return a future
-  Future<void> write(String message);
+  void write(String message);
 }
